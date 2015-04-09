@@ -127,6 +127,7 @@ void fix_file(const string& path)
 					line.erase(firstchar, 3);
 					line[firstchar] = '\t';
 					i = firstchar;
+					spacecount = 0;
 				}
 			}
 			else
