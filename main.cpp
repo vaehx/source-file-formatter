@@ -18,7 +18,10 @@
 using namespace std;
 
 void print_help();
+void fix_file(const string& path);
 void fix_path(const char* path);
+bool abs_path(string& path);
+void safe_dir_path(string& path, char correctSlash = '/', char invalidSlash = '\\');
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -41,7 +44,7 @@ void main(int numargs, char* argv[])
 // Replaces all occurences of backslash with forward slash and make
 // sure the path ends with a trailing slash.
 // The function assumes that path is actually a directory.
-void safe_dir_path(string& path, char correctSlash = '/', char invalidSlash = '\\')
+void safe_dir_path(string& path, char correctSlash, char invalidSlash)
 {
 	if (!path.empty())
 	{
