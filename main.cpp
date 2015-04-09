@@ -144,7 +144,7 @@ void fix_file(const string& path)
 	// safe
 	ofstream outstream;
 	string outpath(path);
-	outpath += ".out";
+	//outpath += ".out";
 	outstream.open(outpath);
 	if (!outstream.is_open())
 	{
