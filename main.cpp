@@ -87,6 +87,47 @@ bool abs_path(string& path)
 
 ///////////////////////////////////////////////////////////////////////////
 
+// Arguments:
+//	line - the actual line string without terminating end line
+//	spacesToTabs - Convert spaces to tabs if true, tabs to spaces if false
+void convert_line(string& line, bool spacesToTabs)
+{
+	// \t   asdasd
+	int spacecount = 0;
+	int firstchar = 0;
+	for (unsigned int i = 0; i < line.length(); ++i)
+	{
+		char c = line[i];
+		if (c == '\t')
+		{
+			spacecount = 0;
+			continue;
+		}
+		else if (c == ' ')
+		{
+			if (spacecount == 0)
+				firstchar = i;
+
+			spacecount++;
+			if (spacecount == 4)
+			{
+				// replace 4 spaces with one tab
+				line.erase(firstchar, 3);
+				line[firstchar] = '\t';
+				i = firstchar;
+				spacecount = 0;
+			}
+		}
+		else
+		{
+			// found any character, stop convertion
+			break;
+		}
+	}
+}
+
+///////////////////////////////////////////////////////////////////////////
+
 void fix_file(const string& path)
 {		
 	cout << "Fixing file " << path << "..." << endl;
@@ -104,39 +145,7 @@ void fix_file(const string& path)
 	string line;
 	while (getline(instream, line))
 	{
-		// \t   asdasd
-		int spacecount = 0;
-		int firstchar = 0;
-		for (unsigned int i = 0; i < line.length(); ++i)
-		{
-			char c = line[i];
-			if (c == '\t')
-			{
-				spacecount = 0;
-				continue;
-			}
-			else if (c == ' ')
-			{
-				if (spacecount == 0)
-					firstchar = i;
-
-				spacecount++;
-				if (spacecount == 4)
-				{
-					// replace 4 spaces with one tab
-					line.erase(firstchar, 3);
-					line[firstchar] = '\t';
-					i = firstchar;
-					spacecount = 0;
-				}
-			}
-			else
-			{
-				// found any character, stop convertion
-				break;
-			}
-		}
-
+		convert_line(line, true);
 		converted << line << endl;
 	}
 
