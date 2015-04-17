@@ -7,6 +7,10 @@
 
 #include <iostream>
 #include <sstream>
+#include <algorithm>
+#include <cctype>
+#include <functional>
+#include <locale>
 #include <fstream>
 #include <sys/stat.h>
 #ifdef WIN32
@@ -87,43 +91,62 @@ bool abs_path(string& path)
 
 ///////////////////////////////////////////////////////////////////////////
 
+// Trims string from start
+static inline string& ltrim(string& s)
+{
+	s.erase(s.begin(), std::find_if(s.begin(), s.end(), std::not1(std::ptr_fun<int, int>(std::isspace))));
+	return s;
+}
+
+///////////////////////////////////////////////////////////////////////////
+
 // Arguments:
 //	line - the actual line string without terminating end line
 //	spacesToTabs - Convert spaces to tabs if true, tabs to spaces if false
-void convert_line(string& line, bool spacesToTabs)
+static inline string& convert_line(string& line, bool spacesToTabs, unsigned short tabsz)
 {
-	// \t   asdasd
-	int spacecount = 0;
-	int firstchar = 0;
-	for (unsigned int i = 0; i < line.length(); ++i)
+	unsigned short i;
+
+	// Determine chars to convert
+	char needlech = (spacesToTabs ? ' ' : '\t');
+	char replacech = (spacesToTabs ? '\t' : ' ');
+
+	// Count spaces and tabs at line start
+	unsigned short num_spaces = 0, num_tabs = 0;
+	for (i = 0; i < line.length(); ++i)
 	{
 		char c = line[i];
 		if (c == '\t')
-		{
-			spacecount = 0;
-			continue;
-		}
+			++num_tabs;
 		else if (c == ' ')
-		{
-			if (spacecount == 0)
-				firstchar = i;
-
-			spacecount++;
-			if (spacecount == 4)
-			{
-				// replace 4 spaces with one tab
-				line.erase(firstchar, 3);
-				line[firstchar] = '\t';
-				i = firstchar;
-				spacecount = 0;
-			}
-		}
+			++num_spaces;
 		else
-		{
-			// found any character, stop convertion
 			break;
-		}
 	}
+
+	// calculate total space count
+	unsigned short num_total_spaces = num_spaces + num_tabs * tabsz;
+
+	// Trim the line at beginning
+	ltrim(line);
+
+	// prepend new indent		
+	unsigned short num_remaining_spaces = num_total_spaces;
+	unsigned short num_written_chars = 0;
+	if (spacesToTabs)
+	{
+		unsigned short num_conv_tabs = (num_total_spaces - (num_remaining_spaces % tabsz)) / 4;
+		for (i = 0; i < num_conv_tabs; ++i)
+			line.insert(0, 1, '\t');
+
+		num_remaining_spaces -= num_conv_tabs * 4;
+		num_written_chars = num_conv_tabs;
+	}
+	
+	for (i = 0; i < num_remaining_spaces; ++i)
+		line.insert(num_written_chars, 1, ' ');
+
+	return line;
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -145,7 +168,7 @@ void fix_file(const string& path)
 	string line;
 	while (getline(instream, line))
 	{
-		convert_line(line, true);
+		convert_line(line, true, 4);
 		converted << line << endl;
 	}
 
