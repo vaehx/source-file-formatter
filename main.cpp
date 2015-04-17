@@ -13,6 +13,7 @@
 #include <locale>
 #include <fstream>
 #include <sys/stat.h>
+#include <vector>
 #ifdef WIN32
 #include <direct.h>
 #include <Windows.h>
@@ -21,26 +22,85 @@
 
 using namespace std;
 
-void print_help();
-void fix_file(const string& path);
-void fix_path(const char* path);
+#define DEF_TAB_SIZE 4
+
+void fix_file(const string& path, bool spacesToTabs, unsigned short tabsz);
+void fix_path(string& path, bool spacesToTabs, unsigned short tabsz);
 bool abs_path(string& path);
 void safe_dir_path(string& path, char correctSlash = '/', char invalidSlash = '\\');
+inline string& ltrim(string& s);
+static inline string& convert_line(string& line, bool spacesToTabs, unsigned short tabsz);
 
 ///////////////////////////////////////////////////////////////////////////
 
-void main(int numargs, char* argv[])
+void print_help()
 {
-	switch (numargs)
-	{	
-	case 2:
-		fix_path(argv[1]);
-		break;
+	cout << "Usage: identfix [options] <path>" << endl;
+	cout << "Make sure file is indented with tabs instead of (def: " << DEF_TAB_SIZE << ") spaces." << endl;
+	cout << endl;
+	cout << "If path is a directory, all files in it get fixed (not recursively)." << endl;
+	cout << "Options: " << endl <<
+		"    -h, --help		Print this help" << endl <<
+		"    -s, --spaces	Convert tabs to spaces instead spaces to tabs" << endl <<
+		"    -sz n, --tabsz n	Set custom tab size to n (default: " << DEF_TAB_SIZE << ")" << endl;
+}
 
-	default:
+///////////////////////////////////////////////////////////////////////////
+
+int main(int numargs, char* argv[])
+{
+	if (numargs == 1)
+	{
 		print_help();
-		break;
+		return 1;
 	}
+
+	bool spacesToTabs = true;
+	unsigned short tabsz = DEF_TAB_SIZE;
+	string path;
+	for (int i = 1; i < numargs; ++i)
+	{	
+		string arg = argv[i];
+		if (arg == "-h" || arg == "--help")
+		{
+			print_help();
+			return 1;
+		}
+		else if (arg == "-s" || arg == "--spaces")
+		{
+			spacesToTabs = false;
+		}
+		else if (arg == "-sz" || arg == "--tabsz")
+		{
+			if (i + 1 >= numargs)
+			{
+				cerr << "-sz option requires one argument (size)" << endl;
+				return 1;
+			}
+
+			int itabsz = atoi(argv[++i]);
+			tabsz = static_cast<unsigned short>(itabsz);			
+		}
+		else
+		{
+			if (!arg.compare(0, 1, "-"))
+			{
+				cerr << arg << " is not a valid option!" << endl;
+				return 1;
+			}
+
+			path = arg;
+		}
+	}
+
+	if (path.length() == 0)
+	{
+		cerr << "No path given!" << endl;
+		return 1;
+	}
+
+	fix_path(path, spacesToTabs, tabsz);
+	return 0;
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -92,7 +152,7 @@ bool abs_path(string& path)
 ///////////////////////////////////////////////////////////////////////////
 
 // Trims string from start
-static inline string& ltrim(string& s)
+inline string& ltrim(string& s)
 {
 	s.erase(s.begin(), std::find_if(s.begin(), s.end(), std::not1(std::ptr_fun<int, int>(std::isspace))));
 	return s;
@@ -103,7 +163,7 @@ static inline string& ltrim(string& s)
 // Arguments:
 //	line - the actual line string without terminating end line
 //	spacesToTabs - Convert spaces to tabs if true, tabs to spaces if false
-static inline string& convert_line(string& line, bool spacesToTabs, unsigned short tabsz)
+inline string& convert_line(string& line, bool spacesToTabs, unsigned short tabsz)
 {
 	unsigned short i;
 
@@ -135,11 +195,11 @@ static inline string& convert_line(string& line, bool spacesToTabs, unsigned sho
 	unsigned short num_written_chars = 0;
 	if (spacesToTabs)
 	{
-		unsigned short num_conv_tabs = (num_total_spaces - (num_remaining_spaces % tabsz)) / 4;
+		unsigned short num_conv_tabs = (num_total_spaces - (num_remaining_spaces % tabsz)) / tabsz;
 		for (i = 0; i < num_conv_tabs; ++i)
 			line.insert(0, 1, '\t');
 
-		num_remaining_spaces -= num_conv_tabs * 4;
+		num_remaining_spaces -= num_conv_tabs * tabsz;
 		num_written_chars = num_conv_tabs;
 	}
 	
@@ -151,7 +211,7 @@ static inline string& convert_line(string& line, bool spacesToTabs, unsigned sho
 
 ///////////////////////////////////////////////////////////////////////////
 
-void fix_file(const string& path)
+void fix_file(const string& path, bool spacesToTabs, unsigned short tabsz)
 {		
 	cout << "Fixing file " << path << "..." << endl;
 
@@ -168,7 +228,7 @@ void fix_file(const string& path)
 	string line;
 	while (getline(instream, line))
 	{
-		convert_line(line, true, 4);
+		convert_line(line, spacesToTabs, tabsz);
 		converted << line << endl;
 	}
 
@@ -190,7 +250,7 @@ void fix_file(const string& path)
 
 ///////////////////////////////////////////////////////////////////////////
 
-void fix_path(const char* ppath)
+void fix_path(string& ppath, bool spacesToTabs, unsigned short tabsz)
 {
 	string path(ppath);
 	abs_path(path);
@@ -226,7 +286,7 @@ void fix_path(const char* ppath)
 		{
 			do
 			{				
-				fix_file(findData.cFileName);
+				fix_file(findData.cFileName, spacesToTabs, tabsz);
 			} while (FindNextFileA(hFind, &findData));
 			FindClose(hFind);
 		}
@@ -236,16 +296,6 @@ void fix_path(const char* ppath)
 	}
 	else
 	{
-		fix_file(path);
+		fix_file(path, spacesToTabs, tabsz);
 	}
-}
-
-///////////////////////////////////////////////////////////////////////////
-
-void print_help()
-{	
-	cout << "Usage: identfix [path]" << endl;
-	cout << "Make sure file is indented with tabs instead of 4 spaces." << endl;
-	cout << endl;
-	cout << "If path is a directory, all files in it get fixed (not recursively)." << endl;
 }
