@@ -1,7 +1,7 @@
 ///////////////////////////////////////////////////////////////////////////
 //
-// identfix - Indentation fixer
-// Copyright (c) 2015, prosenkranz
+// Source File Formatter
+// Copyright (c) 2015-2016, prosenkranz
 //
 ///////////////////////////////////////////////////////////////////////////
 
@@ -35,7 +35,7 @@ static inline string& convert_line(string& line, bool spacesToTabs, unsigned sho
 
 void print_help()
 {
-	cout << "Usage: identfix [options] <path>" << endl;
+	cout << "Usage: sff [options] <path>" << endl;
 	cout << "Make sure file is indented with tabs instead of (def: " << DEF_TAB_SIZE << ") spaces." << endl;
 	cout << endl;
 	cout << "If path is a directory, all files in it get fixed (not recursively)." << endl;
