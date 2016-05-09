@@ -33,7 +33,7 @@ struct format_info
 	format_info()
 		: spacesToTabs(true),
 		tabsz(DEF_TAB_SIZE),
-		rtw(false)
+		rtw(true)
 	{
 	}
 
@@ -52,6 +52,7 @@ static inline string& format_line(string& line, const format_info& format);
 bool abs_path(string& path);
 void safe_dir_path(string& path, char correctSlash = '/', char invalidSlash = '\\');
 inline string& ltrim(string& s);
+inline string& rtrim(string& s);
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -60,12 +61,14 @@ void print_help()
 	cout << "Source File Formatter" << endl;
 	cout << "Usage: sff [options] <path>" << endl;
 	cout << "Makes sure the file is indented with tabs instead of (def: " << DEF_TAB_SIZE << ") spaces." << endl;
+	cout << "Also removes trailing whitespaces by default. To disable, add -k flag." << endl;
 	cout << endl;
 	cout << "If path is a directory, all files in it get fixed (not recursively)." << endl;
 	cout << "Options: " << endl <<
 		"    -h, --help		Print this help" << endl <<
 		"    -s, --spaces	Convert tabs to spaces instead spaces to tabs" << endl <<
-		"    -sz n, --tabsz n	Set custom tab size to n (default: " << DEF_TAB_SIZE << ")" << endl;
+		"    -sz n, --tabsz n	Set custom tab size to n (default: " << DEF_TAB_SIZE << ")" << endl <<
+		"    -k, --keep-trailing	Keep trailing whitespaces" << endl;
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -102,6 +105,10 @@ int main(int numargs, char* argv[])
 
 			int itabsz = atoi(argv[++i]);
 			format.tabsz = static_cast<unsigned short>(itabsz);
+		}
+		else if (arg == "-k" || arg == "--keep-trailing")
+		{
+			format.rtw = false;
 		}
 		else
 		{
@@ -180,12 +187,19 @@ inline string& ltrim(string& s)
 	return s;
 }
 
+// Trims string at the end
+inline string& rtrim(string& s)
+{
+	s.erase(std::find_if(s.rbegin(), s.rend(), std::not1(std::ptr_fun<int, int>(std::isspace))).base(), s.end());
+	return s;
+}
+
 ///////////////////////////////////////////////////////////////////////////
 
 // Arguments:
 //	line - the actual line string without terminating end line
 //	spacesToTabs - Convert spaces to tabs if true, tabs to spaces if false
-inline string& format_line(string& line, const format_info& format)
+inline string& fix_indent(string& line, bool spacesToTabs, unsigned short tabsz)
 {
 	unsigned short i;
 
@@ -203,7 +217,7 @@ inline string& format_line(string& line, const format_info& format)
 	}
 
 	// calculate total space count
-	unsigned short num_total_spaces = num_spaces + num_tabs * format.tabsz;
+	unsigned short num_total_spaces = num_spaces + num_tabs * tabsz;
 
 	// Trim the line at beginning
 	ltrim(line);
@@ -211,18 +225,32 @@ inline string& format_line(string& line, const format_info& format)
 	// prepend new indent		
 	unsigned short num_remaining_spaces = num_total_spaces;
 	unsigned short num_written_chars = 0;
-	if (format.spacesToTabs)
+	if (spacesToTabs)
 	{
-		unsigned short num_conv_tabs = (num_total_spaces - (num_remaining_spaces % format.tabsz)) / format.tabsz;
+		unsigned short num_conv_tabs = (num_total_spaces - (num_remaining_spaces % tabsz)) / tabsz;
 		for (i = 0; i < num_conv_tabs; ++i)
 			line.insert(0, 1, '\t');
 
-		num_remaining_spaces -= num_conv_tabs * format.tabsz;
+		num_remaining_spaces -= num_conv_tabs * tabsz;
 		num_written_chars = num_conv_tabs;
 	}
-	
+
 	for (i = 0; i < num_remaining_spaces; ++i)
 		line.insert(num_written_chars, 1, ' ');
+
+	return line;
+}
+
+inline string& remove_trailing_whitespaces(string& line)
+{
+	return rtrim(line);
+}
+
+inline string& format_line(string& line, const format_info& format)
+{
+	fix_indent(line, format.spacesToTabs, format.tabsz);
+	if (format.rtw)
+		remove_trailing_whitespaces(line);
 
 	return line;
 }
