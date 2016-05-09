@@ -24,19 +24,42 @@ using namespace std;
 
 #define DEF_TAB_SIZE 4
 
-void fix_file(const string& path, bool spacesToTabs, unsigned short tabsz);
-void fix_path(string& path, bool spacesToTabs, unsigned short tabsz);
+struct format_info
+{
+	bool spacesToTabs; // true = indent with tabs, false = indent with spaces
+	unsigned short tabsz; // number of spaces in a tab
+	bool rtw; // remove trailing whitespaces
+
+	format_info()
+		: spacesToTabs(true),
+		tabsz(DEF_TAB_SIZE),
+		rtw(false)
+	{
+	}
+
+	format_info(bool _spacesToTabs, unsigned short _tabsz, bool _rtw)
+		: spacesToTabs(_spacesToTabs),
+		tabsz(_tabsz),
+		rtw(_rtw)
+	{
+	}
+};
+
+void format_file(const string& path, const format_info& format);
+void format_path(string& path, const format_info& format);
+static inline string& format_line(string& line, const format_info& format);
+
 bool abs_path(string& path);
 void safe_dir_path(string& path, char correctSlash = '/', char invalidSlash = '\\');
 inline string& ltrim(string& s);
-static inline string& convert_line(string& line, bool spacesToTabs, unsigned short tabsz);
 
 ///////////////////////////////////////////////////////////////////////////
 
 void print_help()
 {
+	cout << "Source File Formatter" << endl;
 	cout << "Usage: sff [options] <path>" << endl;
-	cout << "Make sure file is indented with tabs instead of (def: " << DEF_TAB_SIZE << ") spaces." << endl;
+	cout << "Makes sure the file is indented with tabs instead of (def: " << DEF_TAB_SIZE << ") spaces." << endl;
 	cout << endl;
 	cout << "If path is a directory, all files in it get fixed (not recursively)." << endl;
 	cout << "Options: " << endl <<
@@ -55,8 +78,7 @@ int main(int numargs, char* argv[])
 		return 1;
 	}
 
-	bool spacesToTabs = true;
-	unsigned short tabsz = DEF_TAB_SIZE;
+	format_info format;
 	string path;
 	for (int i = 1; i < numargs; ++i)
 	{	
@@ -68,7 +90,7 @@ int main(int numargs, char* argv[])
 		}
 		else if (arg == "-s" || arg == "--spaces")
 		{
-			spacesToTabs = false;
+			format.spacesToTabs = false;
 		}
 		else if (arg == "-sz" || arg == "--tabsz")
 		{
@@ -79,7 +101,7 @@ int main(int numargs, char* argv[])
 			}
 
 			int itabsz = atoi(argv[++i]);
-			tabsz = static_cast<unsigned short>(itabsz);			
+			format.tabsz = static_cast<unsigned short>(itabsz);
 		}
 		else
 		{
@@ -99,7 +121,7 @@ int main(int numargs, char* argv[])
 		return 1;
 	}
 
-	fix_path(path, spacesToTabs, tabsz);
+	format_path(path, format);
 	return 0;
 }
 
@@ -163,13 +185,9 @@ inline string& ltrim(string& s)
 // Arguments:
 //	line - the actual line string without terminating end line
 //	spacesToTabs - Convert spaces to tabs if true, tabs to spaces if false
-inline string& convert_line(string& line, bool spacesToTabs, unsigned short tabsz)
+inline string& format_line(string& line, const format_info& format)
 {
 	unsigned short i;
-
-	// Determine chars to convert
-	char needlech = (spacesToTabs ? ' ' : '\t');
-	char replacech = (spacesToTabs ? '\t' : ' ');
 
 	// Count spaces and tabs at line start
 	unsigned short num_spaces = 0, num_tabs = 0;
@@ -185,7 +203,7 @@ inline string& convert_line(string& line, bool spacesToTabs, unsigned short tabs
 	}
 
 	// calculate total space count
-	unsigned short num_total_spaces = num_spaces + num_tabs * tabsz;
+	unsigned short num_total_spaces = num_spaces + num_tabs * format.tabsz;
 
 	// Trim the line at beginning
 	ltrim(line);
@@ -193,13 +211,13 @@ inline string& convert_line(string& line, bool spacesToTabs, unsigned short tabs
 	// prepend new indent		
 	unsigned short num_remaining_spaces = num_total_spaces;
 	unsigned short num_written_chars = 0;
-	if (spacesToTabs)
+	if (format.spacesToTabs)
 	{
-		unsigned short num_conv_tabs = (num_total_spaces - (num_remaining_spaces % tabsz)) / tabsz;
+		unsigned short num_conv_tabs = (num_total_spaces - (num_remaining_spaces % format.tabsz)) / format.tabsz;
 		for (i = 0; i < num_conv_tabs; ++i)
 			line.insert(0, 1, '\t');
 
-		num_remaining_spaces -= num_conv_tabs * tabsz;
+		num_remaining_spaces -= num_conv_tabs * format.tabsz;
 		num_written_chars = num_conv_tabs;
 	}
 	
@@ -211,7 +229,7 @@ inline string& convert_line(string& line, bool spacesToTabs, unsigned short tabs
 
 ///////////////////////////////////////////////////////////////////////////
 
-void fix_file(const string& path, bool spacesToTabs, unsigned short tabsz)
+void format_file(const string& path, const format_info& format)
 {		
 	cout << "Fixing file " << path << "..." << endl;
 
@@ -228,20 +246,20 @@ void fix_file(const string& path, bool spacesToTabs, unsigned short tabsz)
 	string line;
 	while (getline(instream, line))
 	{
-		convert_line(line, spacesToTabs, tabsz);
+		format_line(line, format);
 		converted << line << endl;
 	}
 
 	instream.close();
 
-	// safe
+	// save
 	ofstream outstream;
 	string outpath(path);
-	//outpath += ".out";
 	outstream.open(outpath);
 	if (!outstream.is_open())
 	{
 		cout << "Could not open " << path << " for writing!" << endl;
+		return;
 	}
 
 	outstream << converted.rdbuf();
@@ -250,7 +268,7 @@ void fix_file(const string& path, bool spacesToTabs, unsigned short tabsz)
 
 ///////////////////////////////////////////////////////////////////////////
 
-void fix_path(string& ppath, bool spacesToTabs, unsigned short tabsz)
+void format_path(string& ppath, const format_info& format)
 {
 	string path(ppath);
 	abs_path(path);
@@ -286,7 +304,7 @@ void fix_path(string& ppath, bool spacesToTabs, unsigned short tabsz)
 		{
 			do
 			{				
-				fix_file(findData.cFileName, spacesToTabs, tabsz);
+				format_file(findData.cFileName, format);
 			} while (FindNextFileA(hFind, &findData));
 			FindClose(hFind);
 		}
@@ -296,6 +314,6 @@ void fix_path(string& ppath, bool spacesToTabs, unsigned short tabsz)
 	}
 	else
 	{
-		fix_file(path, spacesToTabs, tabsz);
+		format_file(path, format);
 	}
 }
