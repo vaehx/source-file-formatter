@@ -84,7 +84,7 @@ int main(int numargs, char* argv[])
 	format_info format;
 	string path;
 	for (int i = 1; i < numargs; ++i)
-	{	
+	{
 		string arg = argv[i];
 		if (arg == "-h" || arg == "--help")
 		{
@@ -160,7 +160,7 @@ bool abs_path(string& path)
 #ifdef WIN32
 	if (PathIsRelativeA(path.c_str()))
 	{
-		char cCurrentPath[FILENAME_MAX];		
+		char cCurrentPath[FILENAME_MAX];
 		if (!_getcwd(cCurrentPath, sizeof(cCurrentPath)))
 			return false;
 
@@ -222,7 +222,7 @@ inline string& fix_indent(string& line, bool spacesToTabs, unsigned short tabsz)
 	// Trim the line at beginning
 	ltrim(line);
 
-	// prepend new indent		
+	// prepend new indent
 	unsigned short num_remaining_spaces = num_total_spaces;
 	unsigned short num_written_chars = 0;
 	if (spacesToTabs)
@@ -258,10 +258,10 @@ inline string& format_line(string& line, const format_info& format)
 ///////////////////////////////////////////////////////////////////////////
 
 void format_file(const string& path, const format_info& format)
-{		
+{
 	cout << "Fixing file " << path << "..." << endl;
 
-	ifstream instream;	
+	ifstream instream;
 	instream.open(path);
 	if (!instream.is_open())
 	{
@@ -269,7 +269,7 @@ void format_file(const string& path, const format_info& format)
 		return;
 	}
 
-	// read and convert per line	
+	// read and convert per line
 	stringstream converted;
 	string line;
 	while (getline(instream, line))
@@ -303,11 +303,11 @@ void format_path(string& ppath, const format_info& format)
 
 	cout << "Trying to fix path " << path << "..." << endl;
 
-	struct stat buf;	
+	struct stat buf;
 	int result;
 
 	result = stat(path.c_str(), &buf);
-	
+
 	if (result != 0)
 	{
 		std::cout << "Invalid path!";
@@ -331,7 +331,7 @@ void format_path(string& ppath, const format_info& format)
 		if (hFind != INVALID_HANDLE_VALUE)
 		{
 			do
-			{				
+			{
 				format_file(findData.cFileName, format);
 			} while (FindNextFileA(hFind, &findData));
 			FindClose(hFind);
