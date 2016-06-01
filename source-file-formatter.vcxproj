@@ -13,7 +13,7 @@
   <PropertyGroup Label="Globals">
     <ProjectGuid>{00649FDA-40D8-4C16-9E3C-964AE741AB58}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
-    <RootNamespace>indentfix</RootNamespace>
+    <RootNamespace>source-file-formatter</RootNamespace>
     <ProjectName>source-file-formatter</ProjectName>
     <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
   </PropertyGroup>
