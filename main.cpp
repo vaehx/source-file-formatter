@@ -18,6 +18,9 @@
 #include <direct.h>
 #include <Windows.h>
 #include <Shlwapi.h>
+#else
+#include <unistd.h>
+#include <dirent.h>
 #endif
 
 using namespace std;
@@ -347,7 +350,7 @@ void format_path(string& ppath, const format_info& format)
 		class dirent *ent;
 		class stat st;
 
-		dir = opendir(safepath);
+		dir = opendir(safepath.c_str());
 		while ((ent = readdir(dir)) != NULL)
 		{
 			const string fileName = ent->d_name;
