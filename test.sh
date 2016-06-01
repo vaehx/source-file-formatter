@@ -2,8 +2,12 @@
 
 SFF="Release/sff.exe"
 if [ ! -f $SFF ]; then
-	echo "Error: Release build not found at $SFF!"
-	exit 1
+	# try with linux build
+	SFF="build/sff"
+	if [ ! -f $SFF ]; then
+		echo "Error: Release build not found at $SFF!"
+		exit 1
+	fi
 fi
 
 function escape_whitespaces {
