@@ -159,9 +159,16 @@ bool abs_path(string& path)
 {
 #ifdef WIN32
 	if (PathIsRelativeA(path.c_str()))
+#else
+	if (path.empty() || path[0] == '/')
+#endif
 	{
 		char cCurrentPath[FILENAME_MAX];
+#ifdef WIN32
 		if (!_getcwd(cCurrentPath, sizeof(cCurrentPath)))
+#else
+		if (!getcwd(cCurrentPath, sizeof(cCurrentPath)))
+#endif
 			return false;
 
 		// just to be sure...
@@ -173,7 +180,6 @@ bool abs_path(string& path)
 
 		return true;
 	}
-#endif
 
 	return false;
 }
@@ -337,7 +343,27 @@ void format_path(string& ppath, const format_info& format)
 			FindClose(hFind);
 		}
 #else
-		cout << "Fixing path not supported in linux yet..." << endl;
+		DIR* dir;
+		class dirent *ent;
+		class stat st;
+
+		dir = opendir(safepath);
+		while ((ent = readdir(dir)) != NULL)
+		{
+			const string fileName = ent->d_name;
+			const string fullFileName = safepath + fileName;
+
+			if (fileName[0] == '.' && fileName.length() <= 2)
+				continue;
+
+			if (stat(fullFileName.c_str(), &st) == -1)
+				continue;
+
+			if ((st.st_mode & S_IFDIR) != 0)
+				continue;
+
+			format_file(fileName, format);
+		}
 #endif
 	}
 	else
