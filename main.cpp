@@ -178,7 +178,12 @@ bool abs_path(string& path)
 		cCurrentPath[sizeof(cCurrentPath) - 1] = '\0';
 
 		string curpath(cCurrentPath);
+
+#ifdef _USING_V110_SDK71_
+		safe_dir_path(curpath, '\\', '/');
+#else
 		safe_dir_path(curpath);
+#endif
 		path = curpath + path;
 
 		return true;
@@ -312,9 +317,18 @@ void format_path(string& ppath, const format_info& format)
 
 	cout << "Trying to fix path " << path << "..." << endl;
 
+#ifdef _USING_V110_SDK71_
+	DWORD attributes = GetFileAttributes(path.c_str());
+	if (attributes == INVALID_FILE_ATTRIBUTES)
+	{
+		std::cout << "Invalid path!" << endl;
+		return;
+	}
+
+	bool isdir = ((attributes & FILE_ATTRIBUTE_DIRECTORY) > 0U);
+#else
 	struct stat buf;
 	int result;
-
 	result = stat(path.c_str(), &buf);
 
 	if (result != 0)
@@ -324,6 +338,8 @@ void format_path(string& ppath, const format_info& format)
 	}
 
 	bool isdir = ((buf.st_mode & S_IFDIR) > 0U);
+#endif
+
 	if (isdir)
 	{
 		// Make a safe directory path
