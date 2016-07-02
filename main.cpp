@@ -82,11 +82,11 @@ void print_help()
 	cout << endl;
 	cout << "If path is a directory, all files in it get fixed (not recursively)." << endl;
 	cout << "Options: " << endl <<
-		"    -h, --help		Print this help" << endl <<
-		"    -s, --spaces	Convert tabs to spaces instead spaces to tabs" << endl <<
-		"    -szb n, --tabSizeBefore n	Set custom tab size to n (default: " << DEF_TAB_SIZE << ")" << endl <<
-		"    -sza n, --tabSizeAfter n	Set custom tab size to n (default: " << DEF_TAB_SIZE << ")" << endl <<
-		"    -k, --keep-trailing	Keep trailing whitespaces" << endl;
+		"    -h, --help                 Print this help" << endl <<
+		"    -s, --spaces               Convert tabs to spaces instead spaces to tabs" << endl <<
+		"    -szb n, --tabSizeBefore n  Set custom tab size to n (default: " << DEF_TAB_SIZE << ")" << endl <<
+		"    -sza n, --tabSizeAfter n   Set custom tab size to n (default: " << DEF_TAB_SIZE << ")" << endl <<
+		"    -k, --keep-trailing        Keep trailing whitespaces" << endl;
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -238,8 +238,8 @@ inline string& rtrim(string& s)
 
 // Arguments:
 //  column - the column where str starts
-//	str - portion of a line consisting of spaces and/or tabs
-//	spacesToTabs - Convert spaces to tabs if true, tabs to spaces if false
+//  str - portion of a line consisting of spaces and/or tabs
+//  spacesToTabs - Convert spaces to tabs if true, tabs to spaces if false
 inline string& whitespace_convert(uint8_t column, string& str, bool spacesToTabs, unsigned short tabSizeBefore, unsigned short tabSizeAfter)
 {
 	unsigned short i;
