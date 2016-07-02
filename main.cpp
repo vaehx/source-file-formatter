@@ -383,7 +383,7 @@ void format_path(string& ppath, const format_info& format)
 			const string fileName = ent->d_name;
 			const string fullFileName = safepath + fileName;
 
-			if (fileName[0] == '.' && fileName.length() <= 2)
+			if (fileName[0] == '.' && (fileName.length() == 1 || fileName.length() == 2 && fileName[1] == '.'))
 				continue;
 
 			if (stat(fullFileName.c_str(), &st) == -1)
