@@ -41,19 +41,22 @@ using namespace std;
 struct format_info
 {
 	bool spacesToTabs; // true = indent with tabs, false = indent with spaces
-	unsigned short tabsz; // number of spaces in a tab
+	unsigned short tabSizeBefore; // number of spaces in a tab
+	unsigned short tabSizeAfter; // desired number of spaces in a tab
 	bool rtw; // remove trailing whitespaces
 
 	format_info()
 		: spacesToTabs(true),
-		tabsz(DEF_TAB_SIZE),
+		tabSizeBefore(DEF_TAB_SIZE),
+		tabSizeAfter(DEF_TAB_SIZE),
 		rtw(true)
 	{
 	}
 
-	format_info(bool _spacesToTabs, unsigned short _tabsz, bool _rtw)
+	format_info(bool _spacesToTabs, unsigned short _tabSizeBefore, unsigned short _tabSizeAfter, bool _rtw)
 		: spacesToTabs(_spacesToTabs),
-		tabsz(_tabsz),
+		tabSizeBefore(_tabSizeBefore),
+		tabSizeAfter(_tabSizeAfter),
 		rtw(_rtw)
 	{
 	}
@@ -81,7 +84,8 @@ void print_help()
 	cout << "Options: " << endl <<
 		"    -h, --help		Print this help" << endl <<
 		"    -s, --spaces	Convert tabs to spaces instead spaces to tabs" << endl <<
-		"    -sz n, --tabsz n	Set custom tab size to n (default: " << DEF_TAB_SIZE << ")" << endl <<
+		"    -szb n, --tabSizeBefore n	Set custom tab size to n (default: " << DEF_TAB_SIZE << ")" << endl <<
+		"    -sza n, --tabSizeAfter n	Set custom tab size to n (default: " << DEF_TAB_SIZE << ")" << endl <<
 		"    -k, --keep-trailing	Keep trailing whitespaces" << endl;
 }
 
@@ -109,16 +113,27 @@ int main(int numargs, char* argv[])
 		{
 			format.spacesToTabs = false;
 		}
-		else if (arg == "-sz" || arg == "--tabsz")
+		else if (arg == "-szb" || arg == "--tabSizeBefore")
 		{
 			if (i + 1 >= numargs)
 			{
-				cerr << "-sz option requires one argument (size)" << endl;
+				cerr << "-szb option requires one argument (size)" << endl;
 				return 1;
 			}
 
 			int itabsz = atoi(argv[++i]);
-			format.tabsz = static_cast<unsigned short>(itabsz);
+			format.tabSizeBefore = static_cast<unsigned short>(itabsz);
+		}
+		else if(arg == "-sza" || arg == "--tabSizeAfter")
+		{
+			if(i + 1 >= numargs)
+			{
+				cerr << "-sza option requires one argument (size)" << endl;
+				return 1;
+			}
+
+			int itabsz = atoi(argv[++i]);
+			format.tabSizeAfter = static_cast<unsigned short>(itabsz);
 		}
 		else if (arg == "-k" || arg == "--keep-trailing")
 		{
@@ -222,48 +237,53 @@ inline string& rtrim(string& s)
 ///////////////////////////////////////////////////////////////////////////
 
 // Arguments:
-//	line - the actual line string without terminating end line
+//  column - the column where str starts
+//	str - portion of a line consisting of spaces and/or tabs
 //	spacesToTabs - Convert spaces to tabs if true, tabs to spaces if false
-inline string& fix_indent(string& line, bool spacesToTabs, unsigned short tabsz)
+inline string& whitespace_convert(uint8_t column, string& str, bool spacesToTabs, unsigned short tabSizeBefore, unsigned short tabSizeAfter)
 {
 	unsigned short i;
 
-	// Count spaces and tabs at line start
-	unsigned short num_spaces = 0, num_tabs = 0;
-	for (i = 0; i < line.length(); ++i)
+	// Count spaces and tabs
+	unsigned short tabWidth;
+	unsigned short num_spaces = 0;
+	for (i = 0; i < str.length(); ++i)
 	{
-		char c = line[i];
+		const char& c = str[i];
 		if (c == '\t')
-			++num_tabs;
+		{
+			tabWidth = tabSizeBefore - (column % tabSizeBefore);
+			num_spaces += tabWidth;
+			column += tabWidth;
+		}
 		else if (c == ' ')
+		{
 			++num_spaces;
+			++column;
+		}
 		else
-			break;
+			throw runtime_error("not whitespace");
 	}
 
-	// calculate total space count
-	unsigned short num_total_spaces = num_spaces + num_tabs * tabsz;
+	string converted;
 
-	// Trim the line at beginning
-	ltrim(line);
-
-	// prepend new indent
-	unsigned short num_remaining_spaces = num_total_spaces;
+	unsigned short num_remaining_spaces = num_spaces;
 	unsigned short num_written_chars = 0;
 	if (spacesToTabs)
 	{
-		unsigned short num_conv_tabs = (num_total_spaces - (num_remaining_spaces % tabsz)) / tabsz;
-		for (i = 0; i < num_conv_tabs; ++i)
-			line.insert(0, 1, '\t');
+		unsigned short num_conv_tabs = (num_spaces - (num_remaining_spaces % tabSizeAfter)) / tabSizeAfter;
+		converted.insert(0, num_conv_tabs, '\t');
 
-		num_remaining_spaces -= num_conv_tabs * tabsz;
+		num_remaining_spaces -= num_conv_tabs * tabSizeAfter;
 		num_written_chars = num_conv_tabs;
 	}
 
 	for (i = 0; i < num_remaining_spaces; ++i)
-		line.insert(num_written_chars, 1, ' ');
+		converted.insert(num_written_chars, 1, ' ');
 
-	return line;
+	str = converted;
+
+	return str;
 }
 
 inline string& remove_trailing_whitespaces(string& line)
@@ -273,9 +293,26 @@ inline string& remove_trailing_whitespaces(string& line)
 
 inline string& format_line(string& line, const format_info& format)
 {
-	fix_indent(line, format.spacesToTabs, format.tabsz);
-	if (format.rtw)
+	if(format.rtw)
 		remove_trailing_whitespaces(line);
+	if(line.length() == 0)
+		return line;
+
+	string left;
+	size_t pos = line.find_first_not_of(" \t");
+	if(pos == string::npos)
+	{
+		left = line;
+		line.clear();
+	}
+	else
+	{
+		left = line.substr(0, pos);
+		line = line.substr(pos);
+	}
+
+	whitespace_convert(0, left, format.spacesToTabs, format.tabSizeBefore, format.tabSizeAfter);
+	line = left + line;
 
 	return line;
 }
