@@ -84,8 +84,8 @@ void print_help()
 	cout << "Options: " << endl <<
 		"    -h, --help                 Print this help" << endl <<
 		"    -s, --spaces               Convert tabs to spaces instead spaces to tabs" << endl <<
-		"    -szb n, --tabSizeBefore n  Set custom tab size to n (default: " << DEF_TAB_SIZE << ")" << endl <<
-		"    -sza n, --tabSizeAfter n   Set custom tab size to n (default: " << DEF_TAB_SIZE << ")" << endl <<
+		"    -szb n, --tabSizeBefore n  Tab size to convert from. Set to n (default: " << DEF_TAB_SIZE << ")" << endl <<
+		"    -sza n, --tabSizeAfter n   Tab size to convert to. Set to n (default: " << DEF_TAB_SIZE << ")" << endl <<
 		"    -k, --keep-trailing        Keep trailing whitespaces" << endl;
 }
 
@@ -124,9 +124,9 @@ int main(int numargs, char* argv[])
 			int itabsz = atoi(argv[++i]);
 			format.tabSizeBefore = static_cast<unsigned short>(itabsz);
 		}
-		else if(arg == "-sza" || arg == "--tabSizeAfter")
+		else if (arg == "-sza" || arg == "--tabSizeAfter")
 		{
-			if(i + 1 >= numargs)
+			if (i + 1 >= numargs)
 			{
 				cerr << "-sza option requires one argument (size)" << endl;
 				return 1;
@@ -237,10 +237,10 @@ inline string& rtrim(string& s)
 ///////////////////////////////////////////////////////////////////////////
 
 // Arguments:
-//  column - the column where str starts
 //  str - portion of a line consisting of spaces and/or tabs
+//  column - the column where str starts
 //  spacesToTabs - Convert spaces to tabs if true, tabs to spaces if false
-inline string& whitespace_convert(uint8_t column, string& str, bool spacesToTabs, unsigned short tabSizeBefore, unsigned short tabSizeAfter)
+inline string& whitespace_convert(string& str, uint8_t column, bool spacesToTabs, unsigned short tabSizeBefore, unsigned short tabSizeAfter)
 {
 	unsigned short i;
 
@@ -293,14 +293,14 @@ inline string& remove_trailing_whitespaces(string& line)
 
 inline string& format_line(string& line, const format_info& format)
 {
-	if(format.rtw)
+	if (format.rtw)
 		remove_trailing_whitespaces(line);
-	if(line.length() == 0)
+	if (line.length() == 0)
 		return line;
 
 	string left;
 	size_t pos = line.find_first_not_of(" \t");
-	if(pos == string::npos)
+	if (pos == string::npos)
 	{
 		left = line;
 		line.clear();
@@ -311,7 +311,7 @@ inline string& format_line(string& line, const format_info& format)
 		line = line.substr(pos);
 	}
 
-	whitespace_convert(0, left, format.spacesToTabs, format.tabSizeBefore, format.tabSizeAfter);
+	whitespace_convert(left, 0, format.spacesToTabs, format.tabSizeBefore, format.tabSizeAfter);
 	line = left + line;
 
 	return line;
