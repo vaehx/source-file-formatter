@@ -40,21 +40,24 @@ using namespace std;
 
 struct format_info
 {
-	bool spacesToTabs; // true = indent with tabs, false = indent with spaces
+	bool spaceIndents; // false = indent with tabs, true = indent with spaces
+	bool tabInLine; // false = spaces inside line, true = tabs inside line
 	unsigned short tabSizeBefore; // number of spaces in a tab
 	unsigned short tabSizeAfter; // desired number of spaces in a tab
 	bool rtw; // remove trailing whitespaces
 
 	format_info()
-		: spacesToTabs(true),
+		: spaceIndents(false),
+		tabInLine(false),
 		tabSizeBefore(DEF_TAB_SIZE),
 		tabSizeAfter(DEF_TAB_SIZE),
 		rtw(true)
 	{
 	}
 
-	format_info(bool _spacesToTabs, unsigned short _tabSizeBefore, unsigned short _tabSizeAfter, bool _rtw)
-		: spacesToTabs(_spacesToTabs),
+	format_info(bool _spaceIndents, bool _tabInLine, unsigned short _tabSizeBefore, unsigned short _tabSizeAfter, bool _rtw)
+		: spaceIndents(_spaceIndents),
+		tabInLine(_tabInLine),
 		tabSizeBefore(_tabSizeBefore),
 		tabSizeAfter(_tabSizeAfter),
 		rtw(_rtw)
@@ -83,7 +86,8 @@ void print_help()
 	cout << "If path is a directory, all files in it get fixed (not recursively)." << endl;
 	cout << "Options: " << endl <<
 		"    -h, --help                 Print this help" << endl <<
-		"    -s, --spaces               Convert tabs to spaces instead spaces to tabs" << endl <<
+		"    -s, --spaceIndents         Convert tabs to spaces instead of spaces to tabs (only indentations)" << endl <<
+		"    -t, --tabInLine            Convert spaces to tabs instead of tabs to spaces (except indentations)" << endl <<
 		"    -szb n, --tabSizeBefore n  Tab size to convert from. Set to n (default: " << DEF_TAB_SIZE << ")" << endl <<
 		"    -sza n, --tabSizeAfter n   Tab size to convert to. Set to n (default: " << DEF_TAB_SIZE << ")" << endl <<
 		"    -k, --keep-trailing        Keep trailing whitespaces" << endl;
@@ -109,9 +113,13 @@ int main(int numargs, char* argv[])
 			print_help();
 			return 1;
 		}
-		else if (arg == "-s" || arg == "--spaces")
+		else if (arg == "-s" || arg == "--spaceIndents")
 		{
-			format.spacesToTabs = false;
+			format.spaceIndents = true;
+		}
+		else if(arg == "-t" || arg == "--tabInLine")
+		{
+			format.tabInLine = true;
 		}
 		else if (arg == "-szb" || arg == "--tabSizeBefore")
 		{
@@ -243,9 +251,9 @@ inline string& rtrim(string& s)
 
 // Arguments:
 //  str - portion of a line consisting of spaces and/or tabs
-//  column - the column where str starts
+//  column - the column where str starts - return column where str ends
 //  spacesToTabs - Convert spaces to tabs if true, tabs to spaces if false
-inline string& whitespace_convert(string& str, uint8_t column, bool spacesToTabs, unsigned short tabSizeBefore, unsigned short tabSizeAfter)
+inline string& whitespace_convert(string& str, size_t& column, bool spacesToTabs, unsigned short tabSizeBefore, unsigned short tabSizeAfter)
 {
 	unsigned short i;
 
@@ -270,23 +278,18 @@ inline string& whitespace_convert(string& str, uint8_t column, bool spacesToTabs
 			throw runtime_error("not whitespace");
 	}
 
-	string converted;
+	str.clear();
 
 	unsigned short num_remaining_spaces = num_spaces;
-	unsigned short num_written_chars = 0;
 	if (spacesToTabs)
 	{
 		unsigned short num_conv_tabs = (num_spaces - (num_remaining_spaces % tabSizeAfter)) / tabSizeAfter;
-		converted.insert(0, num_conv_tabs, '\t');
+		str.append(num_conv_tabs, '\t');
 
 		num_remaining_spaces -= num_conv_tabs * tabSizeAfter;
-		num_written_chars = num_conv_tabs;
 	}
 
-	for (i = 0; i < num_remaining_spaces; ++i)
-		converted.insert(num_written_chars, 1, ' ');
-
-	str = converted;
+	str.append(num_remaining_spaces, ' ');
 
 	return str;
 }
@@ -294,6 +297,59 @@ inline string& whitespace_convert(string& str, uint8_t column, bool spacesToTabs
 inline string& remove_trailing_whitespaces(string& line)
 {
 	return rtrim(line);
+}
+
+// Split str into sections of whitespace and non-whitespace
+vector<string> explode_whitespace(string str)
+{
+	vector<string> exploded;
+
+	if (str.length() == 0)
+		return exploded;
+
+	size_t pos;
+	if (str[0] == ' ' || str[0] == '\t')
+	{
+		pos = str.find_first_not_of(" \t");
+		if (pos == string::npos)
+		{
+			exploded.push_back(str);
+			return exploded;
+		}
+		else
+		{
+			exploded.push_back(str.substr(0, pos));
+			str = str.substr(pos);
+		}
+	}
+	while (str.length() > 0)
+	{
+		pos = str.find_first_of(" \t");
+		if (pos == string::npos)
+		{
+			exploded.push_back(str);
+			return exploded;
+		}
+		else
+		{
+			exploded.push_back(str.substr(0, pos));
+			str = str.substr(pos);
+		}
+
+		pos = str.find_first_not_of(" \t");
+		if (pos == string::npos)
+		{
+			exploded.push_back(str);
+			return exploded;
+		}
+		else
+		{
+			exploded.push_back(str.substr(0, pos));
+			str = str.substr(pos);
+		}
+	}
+
+	return exploded;
 }
 
 inline string& format_line(string& line, const format_info& format)
@@ -322,8 +378,20 @@ inline string& format_line(string& line, const format_info& format)
 		line = line.substr(pos);
 	}
 
-	whitespace_convert(left, 0, format.spacesToTabs, format.tabSizeBefore, format.tabSizeAfter);
-	line = left + line;
+	size_t column = 0;
+	whitespace_convert(left, column, !format.spaceIndents, format.tabSizeBefore, format.tabSizeAfter);
+	
+	vector<string> parts = explode_whitespace(line);
+	line = left;
+	for (size_t i = 0; i < parts.size(); ++i)
+	{
+		if (parts[i][0] == ' ' || parts[i][0] == '\t')
+			whitespace_convert(parts[i], column, format.tabInLine, format.tabSizeBefore, format.tabSizeAfter);
+		else
+			column += parts[i].length();
+
+		line += parts[i];
+	}
 
 	return line;
 }
