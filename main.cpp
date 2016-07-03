@@ -298,8 +298,14 @@ inline string& remove_trailing_whitespaces(string& line)
 
 inline string& format_line(string& line, const format_info& format)
 {
-	if (format.rtw)
+	if (format.rtw && !line.empty())
+	{
+		bool carriage_return = (line.back() == '\r');
 		remove_trailing_whitespaces(line);
+		if (carriage_return)
+			line += '\r';
+	}
+
 	if (line.length() == 0)
 		return line;
 
@@ -329,7 +335,7 @@ void format_file(const string& path, const format_info& format)
 	cout << "Fixing file " << path << "..." << endl;
 
 	ifstream instream;
-	instream.open(path);
+	instream.open(path, ios_base::binary | ios_base::in);
 	if (!instream.is_open())
 	{
 		cout << "Could not open " << path << " for reading." << endl;
@@ -339,10 +345,10 @@ void format_file(const string& path, const format_info& format)
 	// read and convert per line
 	stringstream converted;
 	string line;
-	while (getline(instream, line))
+	while (getline(instream, line, '\n'))
 	{
 		format_line(line, format);
-		converted << line << endl;
+		converted << line << '\n';
 	}
 
 	instream.close();
@@ -350,7 +356,7 @@ void format_file(const string& path, const format_info& format)
 	// save
 	ofstream outstream;
 	string outpath(path);
-	outstream.open(outpath);
+	outstream.open(outpath, ios_base::binary | ios_base::out | ios_base::trunc);
 	if (!outstream.is_open())
 	{
 		cout << "Could not open " << path << " for writing!" << endl;
