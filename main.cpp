@@ -41,23 +41,26 @@ using namespace std;
 struct format_info
 {
 	bool spaceIndents; // false = indent with tabs, true = indent with spaces
-	bool tabInLine; // false = spaces inside line, true = tabs inside line
+	bool spaceToTabInLine; // false = do nothing inside line, true = spaces to tabs inside line
+	bool tabToSpaceInLine; // false = do nothing inside line, true = tabs to spaces inside line
 	unsigned short tabSizeBefore; // number of spaces in a tab
 	unsigned short tabSizeAfter; // desired number of spaces in a tab
 	bool rtw; // remove trailing whitespaces
 
 	format_info()
 		: spaceIndents(false),
-		tabInLine(false),
+		spaceToTabInLine(false),
+		tabToSpaceInLine(false),
 		tabSizeBefore(DEF_TAB_SIZE),
 		tabSizeAfter(DEF_TAB_SIZE),
 		rtw(true)
 	{
 	}
 
-	format_info(bool _spaceIndents, bool _tabInLine, unsigned short _tabSizeBefore, unsigned short _tabSizeAfter, bool _rtw)
+	format_info(bool _spaceIndents, bool _tabInLine, bool _spaceInLine, unsigned short _tabSizeBefore, unsigned short _tabSizeAfter, bool _rtw)
 		: spaceIndents(_spaceIndents),
-		tabInLine(_tabInLine),
+		spaceToTabInLine(_tabInLine),
+		tabToSpaceInLine(_spaceInLine),
 		tabSizeBefore(_tabSizeBefore),
 		tabSizeAfter(_tabSizeAfter),
 		rtw(_rtw)
@@ -87,7 +90,8 @@ void print_help()
 	cout << "Options: " << endl <<
 		"    -h, --help                 Print this help" << endl <<
 		"    -s, --spaceIndents         Convert tabs to spaces instead of spaces to tabs (only indentations)" << endl <<
-		"    -t, --tabInLine            Convert spaces to tabs instead of tabs to spaces (except indentations)" << endl <<
+		"    -s2t, --spaceToTabInLine   Convert spaces to tabs inside of line." << endl <<
+		"    -t2s, --tabToSpaceInLine   Convert tabs to spaces inside of line." << endl <<
 		"    -szb n, --tabSizeBefore n  Tab size to convert from. Set to n (default: " << DEF_TAB_SIZE << ")" << endl <<
 		"    -sza n, --tabSizeAfter n   Tab size to convert to. Set to n (default: " << DEF_TAB_SIZE << ")" << endl <<
 		"    -k, --keep-trailing        Keep trailing whitespaces" << endl;
@@ -117,9 +121,13 @@ int main(int numargs, char* argv[])
 		{
 			format.spaceIndents = true;
 		}
-		else if(arg == "-t" || arg == "--tabInLine")
+		else if(arg == "-s2t" || arg == "--spaceToTabInLine")
 		{
-			format.tabInLine = true;
+			format.spaceToTabInLine = true;
+		}
+		else if (arg == "-t2s" || arg == "--tabToSpaceInLine")
+		{
+			format.tabToSpaceInLine = true;
 		}
 		else if (arg == "-szb" || arg == "--tabSizeBefore")
 		{
@@ -157,6 +165,12 @@ int main(int numargs, char* argv[])
 
 			path = arg;
 		}
+	}
+
+	if (format.spaceToTabInLine && format.tabToSpaceInLine)
+	{
+		cerr << "-t2s and -s2t are mutually exclusive options!" << endl;
+		return 1;
 	}
 
 	if (path.length() == 0)
@@ -381,16 +395,23 @@ inline string& format_line(string& line, const format_info& format)
 	size_t column = 0;
 	whitespace_convert(left, column, !format.spaceIndents, format.tabSizeBefore, format.tabSizeAfter);
 	
-	vector<string> parts = explode_whitespace(line);
-	line = left;
-	for (size_t i = 0; i < parts.size(); ++i)
+	if (format.spaceToTabInLine || format.tabToSpaceInLine)
 	{
-		if (parts[i][0] == ' ' || parts[i][0] == '\t')
-			whitespace_convert(parts[i], column, format.tabInLine, format.tabSizeBefore, format.tabSizeAfter);
-		else
-			column += parts[i].length();
+		vector<string> parts = explode_whitespace(line);
+		line = left;
+		for (size_t i = 0; i < parts.size(); ++i)
+		{
+			if (parts[i][0] == ' ' || parts[i][0] == '\t')
+				whitespace_convert(parts[i], column, format.spaceToTabInLine, format.tabSizeBefore, format.tabSizeAfter);
+			else
+				column += parts[i].length();
 
-		line += parts[i];
+			line += parts[i];
+		}
+	}
+	else
+	{
+		line = left + line;
 	}
 
 	return line;
