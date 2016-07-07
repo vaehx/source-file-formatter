@@ -415,6 +415,9 @@ void format_path(string& ppath, const format_info& format)
 		{
 			do
 			{
+				if ((findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0)
+					continue;
+
 				format_file(findData.cFileName, format);
 			} while (FindNextFileA(hFind, &findData));
 			FindClose(hFind);
