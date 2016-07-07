@@ -408,8 +408,7 @@ void format_path(string& ppath, const format_info& format)
 		HANDLE hFind;
 		WIN32_FIND_DATAA findData;
 
-		string findfile = safepath;
-		findfile += "*.*";
+		string findfile = safepath + "*";
 
 		hFind = FindFirstFileA(findfile.c_str(), &findData);
 		if (hFind != INVALID_HANDLE_VALUE)
