@@ -276,7 +276,7 @@ inline string& whitespace_convert(string& str, uint8_t column, bool spacesToTabs
 	unsigned short num_written_chars = 0;
 	if (spacesToTabs)
 	{
-		unsigned short num_conv_tabs = (num_spaces - (num_remaining_spaces % tabSizeAfter)) / tabSizeAfter;
+		unsigned short num_conv_tabs = (num_spaces - ((column + num_remaining_spaces) % tabSizeAfter)) / tabSizeAfter;
 		converted.insert(0, num_conv_tabs, '\t');
 
 		num_remaining_spaces -= num_conv_tabs * tabSizeAfter;
