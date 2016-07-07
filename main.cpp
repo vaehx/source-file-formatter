@@ -322,23 +322,14 @@ vector<string> explode_whitespace(string str)
 		return exploded;
 
 	size_t pos;
-	if (str[0] == ' ' || str[0] == '\t')
+	bool findWhitespaceSection = (str[0] != ' ' && str[0] != '\t');
+	while (!str.empty())
 	{
-		pos = str.find_first_not_of(" \t");
-		if (pos == string::npos)
-		{
-			exploded.push_back(str);
-			return exploded;
-		}
+		if (findWhitespaceSection)
+			pos = str.find_first_of(" \t");
 		else
-		{
-			exploded.push_back(str.substr(0, pos));
-			str = str.substr(pos);
-		}
-	}
-	while (str.length() > 0)
-	{
-		pos = str.find_first_of(" \t");
+			pos = str.find_first_not_of(" \t");
+
 		if (pos == string::npos)
 		{
 			exploded.push_back(str);
@@ -350,17 +341,7 @@ vector<string> explode_whitespace(string str)
 			str = str.substr(pos);
 		}
 
-		pos = str.find_first_not_of(" \t");
-		if (pos == string::npos)
-		{
-			exploded.push_back(str);
-			return exploded;
-		}
-		else
-		{
-			exploded.push_back(str.substr(0, pos));
-			str = str.substr(pos);
-		}
+		findWhitespaceSection = !findWhitespaceSection;
 	}
 
 	return exploded;
