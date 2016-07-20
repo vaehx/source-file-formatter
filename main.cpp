@@ -455,7 +455,7 @@ void format_path(string& ppath, const format_info& format)
 	abs_path(abspath);
 
 #ifdef _USING_V110_SDK71_
-	DWORD attributes = GetFileAttributes(path.c_str());
+	DWORD attributes = GetFileAttributes(abspath.c_str());
 	if (attributes == INVALID_FILE_ATTRIBUTES)
 	{
 		std::cout << "Invalid path!" << endl;
