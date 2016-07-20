@@ -20,11 +20,12 @@ num_run=0
 # param 1: test description
 # param 2: original content
 # param 3: expected result
+# param 4: additional parameters
 function do_test {
 	printf "Test '$1'... "
 
 	echo "$2" > sff-unittest.txt
-	$SFF sff-unittest.txt > /dev/null
+	$SFF $4 sff-unittest.txt > /dev/null
 	if [ "$(cat sff-unittest.txt)" != "$3" ]; then
 		echo "Failed!"
 		echo "  Input   : \"$(escape_whitespaces "$2")\""
@@ -45,6 +46,8 @@ function test_clean {
 
 do_test "Leading mixed" "  	  	    CONTENT" "			CONTENT"
 do_test "Trailing mixed" "CONTENT	   		 " "CONTENT"
+do_test "Inline Space -> Tab"  "CON    TENT"   "CON	   TENT" "--spaceToTabInLine"
+do_test "Inline Tab -> Space"  "CON	   TENT"   "CON    TENT" "--tabToSpaceInLine"
 
 echo
 echo "----------------------------------------------"
