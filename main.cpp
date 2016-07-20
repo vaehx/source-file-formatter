@@ -68,6 +68,7 @@ static inline string& format_line(string& line, const format_info& format);
 
 bool abs_path(string& path);
 void safe_dir_path(string& path, char correctSlash = '/', char invalidSlash = '\\');
+
 inline string& ltrim(string& s);
 inline string& rtrim(string& s);
 
@@ -332,8 +333,6 @@ inline string& format_line(string& line, const format_info& format)
 
 void format_file(const string& path, const format_info& format)
 {
-	cout << "Fixing file " << path << "..." << endl;
-
 	ifstream instream;
 	instream.open(path, ios_base::binary | ios_base::in);
 	if (!instream.is_open())
@@ -365,16 +364,16 @@ void format_file(const string& path, const format_info& format)
 
 	outstream << converted.rdbuf();
 	outstream.close();
+
+	cout << "Fixed " << path << endl;
 }
 
 ///////////////////////////////////////////////////////////////////////////
 
 void format_path(string& ppath, const format_info& format)
 {
-	string path(ppath);
-	abs_path(path);
-
-	cout << "Trying to fix path " << path << "..." << endl;
+	string abspath(ppath);
+	abs_path(abspath);
 
 #ifdef _USING_V110_SDK71_
 	DWORD attributes = GetFileAttributes(path.c_str());
@@ -388,11 +387,11 @@ void format_path(string& ppath, const format_info& format)
 #else
 	struct stat buf;
 	int result;
-	result = stat(path.c_str(), &buf);
+	result = stat(abspath.c_str(), &buf);
 
 	if (result != 0)
 	{
-		std::cout << "Invalid path!";
+		std::cout << "Invalid path!" << endl;
 		return;
 	}
 
@@ -401,14 +400,21 @@ void format_path(string& ppath, const format_info& format)
 
 	if (isdir)
 	{
-		// Make a safe directory path
-		string safepath(path);
-		safe_dir_path(safepath);
+		// For output, we want a safe (relative) path
+		string path_safe(ppath);
+		safe_dir_path(path_safe);
+
+		// Directory traversal needs a safe absolute path
+		string abspath_safe(abspath);
+		safe_dir_path(abspath_safe);
+
+		cout << "Trying to fix path " << abspath_safe << " ..." << endl;
+
 #ifdef WIN32
 		HANDLE hFind;
 		WIN32_FIND_DATAA findData;
 
-		string findfile = safepath + "*";
+		string findfile = abspath_safe + "*";
 
 		hFind = FindFirstFileA(findfile.c_str(), &findData);
 		if (hFind != INVALID_HANDLE_VALUE)
@@ -418,7 +424,7 @@ void format_path(string& ppath, const format_info& format)
 				if ((findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0)
 					continue;
 
-				format_file(findData.cFileName, format);
+				format_file(path_safe + findData.cFileName, format);
 			} while (FindNextFileA(hFind, &findData));
 			FindClose(hFind);
 		}
@@ -427,11 +433,11 @@ void format_path(string& ppath, const format_info& format)
 		class dirent *ent;
 		class stat st;
 
-		dir = opendir(safepath.c_str());
+		dir = opendir(abspath_safe.c_str());
 		while ((ent = readdir(dir)) != NULL)
 		{
 			const string fileName = ent->d_name;
-			const string fullFileName = safepath + fileName;
+			const string fullFileName = abspath_safe + fileName;
 
 			if (fileName[0] == '.' && (fileName.length() == 1 || fileName.length() == 2 && fileName[1] == '.'))
 				continue;
@@ -442,12 +448,12 @@ void format_path(string& ppath, const format_info& format)
 			if ((st.st_mode & S_IFDIR) != 0)
 				continue;
 
-			format_file(fileName, format);
+			format_file(path_safe + fileName, format);
 		}
 #endif
 	}
 	else
 	{
-		format_file(path, format);
+		format_file(ppath, format);
 	}
 }
