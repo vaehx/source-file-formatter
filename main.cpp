@@ -252,42 +252,46 @@ inline string& whitespace_convert(string& str, uint8_t column, bool spacesToTabs
 
 	// Count spaces and tabs
 	unsigned short tabWidth;
-	unsigned short num_spaces = 0;
+	size_t num_spaces = 0;
+	size_t currentColumn = column;
 	for (i = 0; i < str.length(); ++i)
 	{
 		const char& c = str[i];
 		if (c == '\t')
 		{
-			tabWidth = tabSizeBefore - (column % tabSizeBefore);
+			tabWidth = tabSizeBefore - (currentColumn % tabSizeBefore);
 			num_spaces += tabWidth;
-			column += tabWidth;
+			currentColumn += tabWidth;
 		}
 		else if (c == ' ')
 		{
 			++num_spaces;
-			++column;
+			++currentColumn;
 		}
 		else
 			throw runtime_error("not whitespace");
 	}
 
-	string converted;
+	str.clear();
 
-	unsigned short num_remaining_spaces = num_spaces;
-	unsigned short num_written_chars = 0;
 	if (spacesToTabs)
 	{
-		unsigned short num_conv_tabs = (num_spaces - (num_remaining_spaces % tabSizeAfter)) / tabSizeAfter;
-		converted.insert(0, num_conv_tabs, '\t');
+		size_t spacesInFirstTab = tabSizeAfter - column % tabSizeAfter;
+		if (num_spaces >= spacesInFirstTab)
+		{
+			str.append(1, '\t');
+			num_spaces -= spacesInFirstTab;
 
-		num_remaining_spaces -= num_conv_tabs * tabSizeAfter;
-		num_written_chars = num_conv_tabs;
+			//now spaces and tabs are column aligned
+
+			size_t num_conv_tabs = num_spaces / tabSizeAfter;
+			str.append(num_conv_tabs, '\t');
+
+			num_spaces -= num_conv_tabs * tabSizeAfter;
+		}
 	}
 
-	for (i = 0; i < num_remaining_spaces; ++i)
-		converted.insert(num_written_chars, 1, ' ');
-
-	str = converted;
+	str.append(num_spaces, ' ');
 
 	return str;
 }
