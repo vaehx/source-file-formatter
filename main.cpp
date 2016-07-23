@@ -314,6 +314,7 @@ inline string& whitespace_convert(string& str, size_t& column, bool spacesToTabs
 	}
 
 	str.append(num_spaces, ' ');
+	column = currentColumn;
 
 	return str;
 }
