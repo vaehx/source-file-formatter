@@ -455,7 +455,7 @@ void format_path(string& ppath, const format_info& format)
 	string abspath(ppath);
 	abs_path(abspath);
 
-#ifdef _USING_V110_SDK71_
+#if _MSC_VER >= 1700
 	DWORD attributes = GetFileAttributes(abspath.c_str());
 	if (attributes == INVALID_FILE_ATTRIBUTES)
 	{
