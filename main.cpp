@@ -47,6 +47,8 @@ struct format_info
 	bool commentSingleLine; // false = don't alter, true = change /* ... */ at end of single line to // ...
 	unsigned short tabSizeBefore; // number of spaces in a tab
 	unsigned short tabSizeAfter; // desired number of spaces in a tab
+	bool carriageReturnAdd; // add CR if missing
+	bool carriageReturnRemove; // remove CR is present
 	bool rtw; // remove trailing whitespaces
 
 	format_info()
@@ -57,11 +59,13 @@ struct format_info
 		commentSingleLine(false),
 		tabSizeBefore(DEF_TAB_SIZE),
 		tabSizeAfter(DEF_TAB_SIZE),
+		carriageReturnAdd(false),
+		carriageReturnRemove(false),
 		rtw(true)
 	{
 	}
 
-	format_info(bool _spaceIndents, bool _tabIndents, bool _tabInLine, bool _spaceInLine, bool _commentSingleLine, unsigned short _tabSizeBefore, unsigned short _tabSizeAfter, bool _rtw)
+	format_info(bool _spaceIndents, bool _tabIndents, bool _tabInLine, bool _spaceInLine, bool _commentSingleLine, unsigned short _tabSizeBefore, unsigned short _tabSizeAfter, bool _carriageReturnAdd, bool _carriageReturnRemove, bool _rtw)
 		: spaceIndents(_spaceIndents),
 		tabIndents(_tabIndents),
 		spaceToTabInLine(_tabInLine),
@@ -69,6 +73,8 @@ struct format_info
 		commentSingleLine(_commentSingleLine),
 		tabSizeBefore(_tabSizeBefore),
 		tabSizeAfter(_tabSizeAfter),
+		carriageReturnAdd(_carriageReturnAdd),
+		carriageReturnRemove(_carriageReturnRemove),
 		rtw(_rtw)
 	{
 	}
@@ -103,6 +109,8 @@ void print_help()
 		"    -c, --commentSingleLine    Convert /* ... */ at end of single line to // ..." << endl <<
 		"    -szb n, --tabSizeBefore n  Tab size to convert from. Set to n (default: " << DEF_TAB_SIZE << ")" << endl <<
 		"    -sza n, --tabSizeAfter n   Tab size to convert to. Set to n (default: " << DEF_TAB_SIZE << ")" << endl <<
+		"    -ra, --CR-add              Add carriage return at end of line if missing (CRLF)." << endl <<
+		"    -rr, --CR-remove           Remove carriage return at end of line if present." << endl <<
 		"    -k, --keep-trailing        Keep trailing whitespaces" << endl;
 }
 
@@ -168,6 +176,14 @@ int main(int numargs, char* argv[])
 			int itabsz = atoi(argv[++i]);
 			format.tabSizeAfter = static_cast<unsigned short>(itabsz);
 		}
+		else if (arg == "-ra" || arg == "--CR-add")
+		{
+			format.carriageReturnAdd = true;
+		}
+		else if (arg == "-rr" || arg == "--CR-remove")
+		{
+			format.carriageReturnRemove = true;
+		}
 		else if (arg == "-k" || arg == "--keep-trailing")
 		{
 			format.rtw = false;
@@ -192,6 +208,11 @@ int main(int numargs, char* argv[])
 	if (format.spaceToTabInLine && format.tabToSpaceInLine)
 	{
 		cerr << "-t2s and -s2t are mutually exclusive options!" << endl;
+		return 1;
+	}
+	if (format.carriageReturnAdd && format.carriageReturnRemove)
+	{
+		cerr << "-ra and -rr are mutually exclusive options!" << endl;
 		return 1;
 	}
 
@@ -277,6 +298,7 @@ inline string& ltrim(string& s)
 }
 
 // Trims string at the end
+// return the trimmed part
 inline string rtrim(string& s)
 {
 	auto trimFrom = std::find_if(s.rbegin(), s.rend(), std::not1(std::ptr_fun(extended_isspace))).base();
@@ -408,11 +430,19 @@ inline string& format_line(string& line, const format_info& format)
 	{
 		bool carriage_return = (line.back() == '\r');
 		remove_trailing_whitespaces(line);
-		if (carriage_return)
+		if ((!format.carriageReturnRemove && carriage_return) || format.carriageReturnAdd)
 			line += '\r';
 
-		if (line.length() == 0 || (carriage_return && line.length() == 1))
+		if (line.length() == 0 || (line.length() == 1 && line.back() == '\r'))
 			return line;
+	}
+	else if(format.carriageReturnAdd && line.back() != '\r')
+	{
+		line += '\r';
+	}
+	else if (format.carriageReturnRemove && line.back() == '\r')
+	{
+		line.erase(line.end() - 1);
 	}
 
 	if (format.spaceIndents || format.tabIndents || format.spaceToTabInLine || format.tabToSpaceInLine)
