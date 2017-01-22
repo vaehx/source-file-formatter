@@ -43,6 +43,7 @@ struct format_info
 	bool spaceIndents; // false = indent with tabs, true = indent with spaces
 	bool spaceToTabInLine; // false = do nothing inside line, true = spaces to tabs inside line
 	bool tabToSpaceInLine; // false = do nothing inside line, true = tabs to spaces inside line
+	bool commentSingleLine; // false = don't alter, true = change /* ... */ at end of single line to // ...
 	unsigned short tabSizeBefore; // number of spaces in a tab
 	unsigned short tabSizeAfter; // desired number of spaces in a tab
 	bool rtw; // remove trailing whitespaces
@@ -51,16 +52,18 @@ struct format_info
 		: spaceIndents(false),
 		spaceToTabInLine(false),
 		tabToSpaceInLine(false),
+		commentSingleLine(false),
 		tabSizeBefore(DEF_TAB_SIZE),
 		tabSizeAfter(DEF_TAB_SIZE),
 		rtw(true)
 	{
 	}
 
-	format_info(bool _spaceIndents, bool _tabInLine, bool _spaceInLine, unsigned short _tabSizeBefore, unsigned short _tabSizeAfter, bool _rtw)
+	format_info(bool _spaceIndents, bool _tabInLine, bool _spaceInLine, bool _commentSingleLine, unsigned short _tabSizeBefore, unsigned short _tabSizeAfter, bool _rtw)
 		: spaceIndents(_spaceIndents),
 		spaceToTabInLine(_tabInLine),
 		tabToSpaceInLine(_spaceInLine),
+		commentSingleLine(_commentSingleLine),
 		tabSizeBefore(_tabSizeBefore),
 		tabSizeAfter(_tabSizeAfter),
 		rtw(_rtw)
@@ -93,6 +96,7 @@ void print_help()
 		"    -s, --spaceIndents         Convert tabs to spaces instead of spaces to tabs (only indentations)" << endl <<
 		"    -s2t, --spaceToTabInLine   Convert spaces to tabs inside of line." << endl <<
 		"    -t2s, --tabToSpaceInLine   Convert tabs to spaces inside of line." << endl <<
+		"    -c, --commentSingleLine    Convert /* ... */ at end of single line to // ..." << endl <<
 		"    -szb n, --tabSizeBefore n  Tab size to convert from. Set to n (default: " << DEF_TAB_SIZE << ")" << endl <<
 		"    -sza n, --tabSizeAfter n   Tab size to convert to. Set to n (default: " << DEF_TAB_SIZE << ")" << endl <<
 		"    -k, --keep-trailing        Keep trailing whitespaces" << endl;
@@ -129,6 +133,10 @@ int main(int numargs, char* argv[])
 		else if (arg == "-t2s" || arg == "--tabToSpaceInLine")
 		{
 			format.tabToSpaceInLine = true;
+		}
+		else if (arg == "-c" || arg == "--commentSingleLine")
+		{
+			format.commentSingleLine = true;
 		}
 		else if (arg == "-szb" || arg == "--tabSizeBefore")
 		{
@@ -360,15 +368,35 @@ vector<string> explode_whitespace(string str)
 
 inline string& format_line(string& line, const format_info& format)
 {
-	if (format.rtw && !line.empty())
-	{
-		bool carriage_return = (line.back() == '\r');
+	if (line.empty())
+		return line;
+
+	bool carriage_return = (line.back() == '\r');
+
+	if (format.rtw)
 		remove_trailing_whitespaces(line);
-		if (carriage_return)
-			line += '\r';
+
+	if (format.commentSingleLine)
+	{
+		size_t startPos = line.rfind("/*");
+		if (startPos != string::npos)
+		{
+			size_t endPos = line.find("*/", startPos+2);
+			if (endPos != string::npos && endPos == line.length() - 2)
+			{
+				line.erase(endPos, 2);
+				line[startPos + 1] = '/';
+			}
+		}
+
+		if (format.rtw)
+			remove_trailing_whitespaces(line);
 	}
 
-	if (line.length() == 0)
+	if (format.rtw && carriage_return)
+		line += '\r';
+
+	if (line.length() == 0 || (carriage_return && line.length() == 1))
 		return line;
 
 	string indent;
