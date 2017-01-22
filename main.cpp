@@ -40,29 +40,41 @@ using namespace std;
 
 struct format_info
 {
-	bool spaceIndents; // false = indent with tabs, true = indent with spaces
+	bool spaceIndents; // true = replace tab indents with spaces
+	bool tabIndents; // true = replace space indents with tabs
 	bool spaceToTabInLine; // false = do nothing inside line, true = spaces to tabs inside line
 	bool tabToSpaceInLine; // false = do nothing inside line, true = tabs to spaces inside line
+	bool commentSingleLine; // false = don't alter, true = change /* ... */ at end of single line to // ...
 	unsigned short tabSizeBefore; // number of spaces in a tab
 	unsigned short tabSizeAfter; // desired number of spaces in a tab
+	bool carriageReturnAdd; // add CR if missing
+	bool carriageReturnRemove; // remove CR is present
 	bool rtw; // remove trailing whitespaces
 
 	format_info()
 		: spaceIndents(false),
+		tabIndents(false),
 		spaceToTabInLine(false),
 		tabToSpaceInLine(false),
+		commentSingleLine(false),
 		tabSizeBefore(DEF_TAB_SIZE),
 		tabSizeAfter(DEF_TAB_SIZE),
+		carriageReturnAdd(false),
+		carriageReturnRemove(false),
 		rtw(true)
 	{
 	}
 
-	format_info(bool _spaceIndents, bool _tabInLine, bool _spaceInLine, unsigned short _tabSizeBefore, unsigned short _tabSizeAfter, bool _rtw)
+	format_info(bool _spaceIndents, bool _tabIndents, bool _tabInLine, bool _spaceInLine, bool _commentSingleLine, unsigned short _tabSizeBefore, unsigned short _tabSizeAfter, bool _carriageReturnAdd, bool _carriageReturnRemove, bool _rtw)
 		: spaceIndents(_spaceIndents),
+		tabIndents(_tabIndents),
 		spaceToTabInLine(_tabInLine),
 		tabToSpaceInLine(_spaceInLine),
+		commentSingleLine(_commentSingleLine),
 		tabSizeBefore(_tabSizeBefore),
 		tabSizeAfter(_tabSizeAfter),
+		carriageReturnAdd(_carriageReturnAdd),
+		carriageReturnRemove(_carriageReturnRemove),
 		rtw(_rtw)
 	{
 	}
@@ -76,7 +88,7 @@ bool abs_path(string& path);
 void safe_dir_path(string& path, char correctSlash = '/', char invalidSlash = '\\');
 
 inline string& ltrim(string& s);
-inline string& rtrim(string& s);
+inline string rtrim(string& s);
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -90,11 +102,15 @@ void print_help()
 	cout << "If path is a directory, all files in it get fixed (not recursively)." << endl;
 	cout << "Options: " << endl <<
 		"    -h, --help                 Print this help" << endl <<
-		"    -s, --spaceIndents         Convert tabs to spaces instead of spaces to tabs (only indentations)" << endl <<
+		"    -s, --spaceIndents         Convert tab indentations to spaces" << endl <<
+		"    -t, --tabIndents           Convert space indentations to tabs" << endl <<
 		"    -s2t, --spaceToTabInLine   Convert spaces to tabs inside of line." << endl <<
 		"    -t2s, --tabToSpaceInLine   Convert tabs to spaces inside of line." << endl <<
+		"    -c, --commentSingleLine    Convert /* ... */ at end of single line to // ..." << endl <<
 		"    -szb n, --tabSizeBefore n  Tab size to convert from. Set to n (default: " << DEF_TAB_SIZE << ")" << endl <<
 		"    -sza n, --tabSizeAfter n   Tab size to convert to. Set to n (default: " << DEF_TAB_SIZE << ")" << endl <<
+		"    -ra, --CR-add              Add carriage return at end of line if missing (CRLF)." << endl <<
+		"    -rr, --CR-remove           Remove carriage return at end of line if present." << endl <<
 		"    -k, --keep-trailing        Keep trailing whitespaces" << endl;
 }
 
@@ -122,6 +138,10 @@ int main(int numargs, char* argv[])
 		{
 			format.spaceIndents = true;
 		}
+		else if (arg == "-t" || arg == "--tabIndents")
+		{
+			format.tabIndents = true;
+		}
 		else if(arg == "-s2t" || arg == "--spaceToTabInLine")
 		{
 			format.spaceToTabInLine = true;
@@ -129,6 +149,10 @@ int main(int numargs, char* argv[])
 		else if (arg == "-t2s" || arg == "--tabToSpaceInLine")
 		{
 			format.tabToSpaceInLine = true;
+		}
+		else if (arg == "-c" || arg == "--commentSingleLine")
+		{
+			format.commentSingleLine = true;
 		}
 		else if (arg == "-szb" || arg == "--tabSizeBefore")
 		{
@@ -152,6 +176,14 @@ int main(int numargs, char* argv[])
 			int itabsz = atoi(argv[++i]);
 			format.tabSizeAfter = static_cast<unsigned short>(itabsz);
 		}
+		else if (arg == "-ra" || arg == "--CR-add")
+		{
+			format.carriageReturnAdd = true;
+		}
+		else if (arg == "-rr" || arg == "--CR-remove")
+		{
+			format.carriageReturnRemove = true;
+		}
 		else if (arg == "-k" || arg == "--keep-trailing")
 		{
 			format.rtw = false;
@@ -168,9 +200,19 @@ int main(int numargs, char* argv[])
 		}
 	}
 
+	if (format.spaceIndents && format.tabIndents)
+	{
+		cerr << "-s and -t are mutually exclusive options!" << endl;
+		return 1;
+	}
 	if (format.spaceToTabInLine && format.tabToSpaceInLine)
 	{
 		cerr << "-t2s and -s2t are mutually exclusive options!" << endl;
+		return 1;
+	}
+	if (format.carriageReturnAdd && format.carriageReturnRemove)
+	{
+		cerr << "-ra and -rr are mutually exclusive options!" << endl;
 		return 1;
 	}
 
@@ -256,10 +298,13 @@ inline string& ltrim(string& s)
 }
 
 // Trims string at the end
-inline string& rtrim(string& s)
+// return the trimmed part
+inline string rtrim(string& s)
 {
-	s.erase(std::find_if(s.rbegin(), s.rend(), std::not1(std::ptr_fun(extended_isspace))).base(), s.end());
-	return s;
+	auto trimFrom = std::find_if(s.rbegin(), s.rend(), std::not1(std::ptr_fun(extended_isspace))).base();
+	string trimmed = s.substr(trimFrom - s.begin());
+	s.erase(trimFrom, s.end());
+	return trimmed;
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -319,7 +364,7 @@ inline string& whitespace_convert(string& str, size_t& column, bool spacesToTabs
 	return str;
 }
 
-inline string& remove_trailing_whitespaces(string& line)
+inline string remove_trailing_whitespaces(string& line)
 {
 	return rtrim(line);
 }
@@ -360,50 +405,91 @@ vector<string> explode_whitespace(string str)
 
 inline string& format_line(string& line, const format_info& format)
 {
-	if (format.rtw && !line.empty())
+	if (line.empty())
+		return line;
+
+	if (format.commentSingleLine)
+	{
+		string trailing = remove_trailing_whitespaces(line);
+
+		size_t startPos = line.rfind("/*");
+		if (startPos != string::npos)
+		{
+			size_t endPos = line.find("*/", startPos+2);
+			if (endPos != string::npos && endPos == line.length() - 2)
+			{
+				line[startPos + 1] = '/';
+				line.erase(endPos, 2);
+			}
+		}
+
+		line += trailing;
+	}
+
+	if (format.rtw)
 	{
 		bool carriage_return = (line.back() == '\r');
 		remove_trailing_whitespaces(line);
-		if (carriage_return)
+		if ((!format.carriageReturnRemove && carriage_return) || format.carriageReturnAdd)
 			line += '\r';
+
+		if (line.length() == 0 || (line.length() == 1 && line.back() == '\r'))
+			return line;
+	}
+	else if(format.carriageReturnAdd && line.back() != '\r')
+	{
+		line += '\r';
+	}
+	else if (format.carriageReturnRemove && line.back() == '\r')
+	{
+		line.erase(line.end() - 1);
 	}
 
-	if (line.length() == 0)
-		return line;
+	if (format.spaceIndents || format.tabIndents || format.spaceToTabInLine || format.tabToSpaceInLine)
+	{
+		string indent;
 
-	string left;
-	size_t pos = line.find_first_not_of(" \t");
-	if (pos == string::npos)
-	{
-		left = line;
-		line.clear();
-	}
-	else
-	{
-		left = line.substr(0, pos);
-		line = line.substr(pos);
-	}
-
-	size_t column = 0;
-	whitespace_convert(left, column, !format.spaceIndents, format.tabSizeBefore, format.tabSizeAfter);
-	
-	if (format.spaceToTabInLine || format.tabToSpaceInLine)
-	{
-		vector<string> parts = explode_whitespace(line);
-		line = left;
-		for (size_t i = 0; i < parts.size(); ++i)
 		{
-			if (parts[i][0] == ' ' || parts[i][0] == '\t')
-				whitespace_convert(parts[i], column, format.spaceToTabInLine, format.tabSizeBefore, format.tabSizeAfter);
-			else
-				column += parts[i].length();
+			size_t pos = line.find_first_not_of(" \t");
 
-			line += parts[i];
+			if (pos == string::npos)
+			{
+				indent = line;
+				line.clear();
+			}
+			else
+			{
+				indent = line.substr(0, pos);
+				line = line.substr(pos);
+			}
 		}
-	}
-	else
-	{
-		line = left + line;
+
+		{
+			size_t column = 0;
+
+			if (format.spaceIndents || format.tabIndents)
+				whitespace_convert(indent, column, format.tabIndents, format.tabSizeBefore, format.tabSizeAfter);
+	
+			if (format.spaceToTabInLine || format.tabToSpaceInLine)
+			{
+				vector<string> parts = explode_whitespace(line);
+
+				line = indent;
+				for (size_t i = 0; i < parts.size(); ++i)
+				{
+					if (parts[i][0] == ' ' || parts[i][0] == '\t')
+						whitespace_convert(parts[i], column, format.spaceToTabInLine, format.tabSizeBefore, format.tabSizeAfter);
+					else
+						column += parts[i].length();
+
+					line += parts[i];
+				}
+			}
+			else
+			{
+				line = indent + line;
+			}
+		}
 	}
 
 	return line;
@@ -455,7 +541,7 @@ void format_path(string& ppath, const format_info& format)
 	string abspath(ppath);
 	abs_path(abspath);
 
-#ifdef _USING_V110_SDK71_
+#if _MSC_VER >= 1700
 	DWORD attributes = GetFileAttributes(abspath.c_str());
 	if (attributes == INVALID_FILE_ATTRIBUTES)
 	{
