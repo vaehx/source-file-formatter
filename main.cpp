@@ -415,41 +415,47 @@ inline string& format_line(string& line, const format_info& format)
 	if (format.spaceIndents || format.tabIndents || format.spaceToTabInLine || format.tabToSpaceInLine)
 	{
 		string indent;
-		size_t pos = line.find_first_not_of(" \t");
-		if (pos == string::npos)
-		{
-			indent = line;
-			line.clear();
-		}
-		else
-		{
-			indent = line.substr(0, pos);
-			line = line.substr(pos);
-		}
 
-		size_t column = 0;
-
-		if (format.spaceIndents || format.tabIndents)
-			whitespace_convert(indent, column, format.tabIndents, format.tabSizeBefore, format.tabSizeAfter);
-	
-		if (format.spaceToTabInLine || format.tabToSpaceInLine)
 		{
-			vector<string> parts = explode_whitespace(line);
+			size_t pos = line.find_first_not_of(" \t");
 
-			line = indent;
-			for (size_t i = 0; i < parts.size(); ++i)
+			if (pos == string::npos)
 			{
-				if (parts[i][0] == ' ' || parts[i][0] == '\t')
-					whitespace_convert(parts[i], column, format.spaceToTabInLine, format.tabSizeBefore, format.tabSizeAfter);
-				else
-					column += parts[i].length();
-
-				line += parts[i];
+				indent = line;
+				line.clear();
+			}
+			else
+			{
+				indent = line.substr(0, pos);
+				line = line.substr(pos);
 			}
 		}
-		else
+
 		{
-			line = indent + line;
+			size_t column = 0;
+
+			if (format.spaceIndents || format.tabIndents)
+				whitespace_convert(indent, column, format.tabIndents, format.tabSizeBefore, format.tabSizeAfter);
+	
+			if (format.spaceToTabInLine || format.tabToSpaceInLine)
+			{
+				vector<string> parts = explode_whitespace(line);
+
+				line = indent;
+				for (size_t i = 0; i < parts.size(); ++i)
+				{
+					if (parts[i][0] == ' ' || parts[i][0] == '\t')
+						whitespace_convert(parts[i], column, format.spaceToTabInLine, format.tabSizeBefore, format.tabSizeAfter);
+					else
+						column += parts[i].length();
+
+					line += parts[i];
+				}
+			}
+			else
+			{
+				line = indent + line;
+			}
 		}
 	}
 
