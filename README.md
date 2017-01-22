@@ -3,8 +3,8 @@ Command-line sourcefile formatting tool.
 This tool adds a new empty line at end of file by default, if not there yet.
 Also removes trailing whitespaces by default.
 
-* Replace space indent with tab indent: `sff yourfile.txt`
 * Replace tab indent with space indent: `sff -s yourfile.txt`
+* Replace space indent with tab indent: `sff -t yourfile.txt`
 * Replace spaces inside line with tabs: `sff -s2t yourfile.txt`
 * Replace tabs inside line with spaces: `sff -t2s yourfile.txt`
 * Replace /* ... */ at end of single line with // ...: `sff -c yourfile.txt`

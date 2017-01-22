@@ -40,7 +40,8 @@ using namespace std;
 
 struct format_info
 {
-	bool spaceIndents; // false = indent with tabs, true = indent with spaces
+	bool spaceIndents; // true = replace tab indents with spaces
+	bool tabIndents; // true = replace space indents with tabs
 	bool spaceToTabInLine; // false = do nothing inside line, true = spaces to tabs inside line
 	bool tabToSpaceInLine; // false = do nothing inside line, true = tabs to spaces inside line
 	bool commentSingleLine; // false = don't alter, true = change /* ... */ at end of single line to // ...
@@ -50,6 +51,7 @@ struct format_info
 
 	format_info()
 		: spaceIndents(false),
+		tabIndents(false),
 		spaceToTabInLine(false),
 		tabToSpaceInLine(false),
 		commentSingleLine(false),
@@ -59,8 +61,9 @@ struct format_info
 	{
 	}
 
-	format_info(bool _spaceIndents, bool _tabInLine, bool _spaceInLine, bool _commentSingleLine, unsigned short _tabSizeBefore, unsigned short _tabSizeAfter, bool _rtw)
+	format_info(bool _spaceIndents, bool _tabIndents, bool _tabInLine, bool _spaceInLine, bool _commentSingleLine, unsigned short _tabSizeBefore, unsigned short _tabSizeAfter, bool _rtw)
 		: spaceIndents(_spaceIndents),
+		tabIndents(_tabIndents),
 		spaceToTabInLine(_tabInLine),
 		tabToSpaceInLine(_spaceInLine),
 		commentSingleLine(_commentSingleLine),
@@ -93,7 +96,8 @@ void print_help()
 	cout << "If path is a directory, all files in it get fixed (not recursively)." << endl;
 	cout << "Options: " << endl <<
 		"    -h, --help                 Print this help" << endl <<
-		"    -s, --spaceIndents         Convert tabs to spaces instead of spaces to tabs (only indentations)" << endl <<
+		"    -s, --spaceIndents         Convert tab indentations to spaces" << endl <<
+		"    -t, --tabIndents           Convert space indentations to tabs" << endl <<
 		"    -s2t, --spaceToTabInLine   Convert spaces to tabs inside of line." << endl <<
 		"    -t2s, --tabToSpaceInLine   Convert tabs to spaces inside of line." << endl <<
 		"    -c, --commentSingleLine    Convert /* ... */ at end of single line to // ..." << endl <<
@@ -125,6 +129,10 @@ int main(int numargs, char* argv[])
 		else if (arg == "-s" || arg == "--spaceIndents")
 		{
 			format.spaceIndents = true;
+		}
+		else if (arg == "-t" || arg == "--tabIndents")
+		{
+			format.tabIndents = true;
 		}
 		else if(arg == "-s2t" || arg == "--spaceToTabInLine")
 		{
@@ -176,6 +184,11 @@ int main(int numargs, char* argv[])
 		}
 	}
 
+	if (format.spaceIndents && format.tabIndents)
+	{
+		cerr << "-s and -t are mutually exclusive options!" << endl;
+		return 1;
+	}
 	if (format.spaceToTabInLine && format.tabToSpaceInLine)
 	{
 		cerr << "-t2s and -s2t are mutually exclusive options!" << endl;
@@ -399,39 +412,45 @@ inline string& format_line(string& line, const format_info& format)
 	if (line.length() == 0 || (carriage_return && line.length() == 1))
 		return line;
 
-	string indent;
-	size_t pos = line.find_first_not_of(" \t");
-	if (pos == string::npos)
+	if (format.spaceIndents || format.tabIndents || format.spaceToTabInLine || format.tabToSpaceInLine)
 	{
-		indent = line;
-		line.clear();
-	}
-	else
-	{
-		indent = line.substr(0, pos);
-		line = line.substr(pos);
-	}
-
-	size_t column = 0;
-	whitespace_convert(indent, column, !format.spaceIndents, format.tabSizeBefore, format.tabSizeAfter);
-	
-	if (format.spaceToTabInLine || format.tabToSpaceInLine)
-	{
-		vector<string> parts = explode_whitespace(line);
-		line = indent;
-		for (size_t i = 0; i < parts.size(); ++i)
+		string indent;
+		size_t pos = line.find_first_not_of(" \t");
+		if (pos == string::npos)
 		{
-			if (parts[i][0] == ' ' || parts[i][0] == '\t')
-				whitespace_convert(parts[i], column, format.spaceToTabInLine, format.tabSizeBefore, format.tabSizeAfter);
-			else
-				column += parts[i].length();
-
-			line += parts[i];
+			indent = line;
+			line.clear();
 		}
-	}
-	else
-	{
-		line = indent + line;
+		else
+		{
+			indent = line.substr(0, pos);
+			line = line.substr(pos);
+		}
+
+		size_t column = 0;
+
+		if (format.spaceIndents || format.tabIndents)
+			whitespace_convert(indent, column, format.tabIndents, format.tabSizeBefore, format.tabSizeAfter);
+	
+		if (format.spaceToTabInLine || format.tabToSpaceInLine)
+		{
+			vector<string> parts = explode_whitespace(line);
+
+			line = indent;
+			for (size_t i = 0; i < parts.size(); ++i)
+			{
+				if (parts[i][0] == ' ' || parts[i][0] == '\t')
+					whitespace_convert(parts[i], column, format.spaceToTabInLine, format.tabSizeBefore, format.tabSizeAfter);
+				else
+					column += parts[i].length();
+
+				line += parts[i];
+			}
+		}
+		else
+		{
+			line = indent + line;
+		}
 	}
 
 	return line;
