@@ -371,26 +371,26 @@ inline string& format_line(string& line, const format_info& format)
 	if (line.length() == 0)
 		return line;
 
-	string left;
+	string indent;
 	size_t pos = line.find_first_not_of(" \t");
 	if (pos == string::npos)
 	{
-		left = line;
+		indent = line;
 		line.clear();
 	}
 	else
 	{
-		left = line.substr(0, pos);
+		indent = line.substr(0, pos);
 		line = line.substr(pos);
 	}
 
 	size_t column = 0;
-	whitespace_convert(left, column, !format.spaceIndents, format.tabSizeBefore, format.tabSizeAfter);
+	whitespace_convert(indent, column, !format.spaceIndents, format.tabSizeBefore, format.tabSizeAfter);
 	
 	if (format.spaceToTabInLine || format.tabToSpaceInLine)
 	{
 		vector<string> parts = explode_whitespace(line);
-		line = left;
+		line = indent;
 		for (size_t i = 0; i < parts.size(); ++i)
 		{
 			if (parts[i][0] == ' ' || parts[i][0] == '\t')
@@ -403,7 +403,7 @@ inline string& format_line(string& line, const format_info& format)
 	}
 	else
 	{
-		line = left + line;
+		line = indent + line;
 	}
 
 	return line;
