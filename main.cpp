@@ -82,7 +82,7 @@ bool abs_path(string& path);
 void safe_dir_path(string& path, char correctSlash = '/', char invalidSlash = '\\');
 
 inline string& ltrim(string& s);
-inline string& rtrim(string& s);
+inline string rtrim(string& s);
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -277,10 +277,12 @@ inline string& ltrim(string& s)
 }
 
 // Trims string at the end
-inline string& rtrim(string& s)
+inline string rtrim(string& s)
 {
-	s.erase(std::find_if(s.rbegin(), s.rend(), std::not1(std::ptr_fun(extended_isspace))).base(), s.end());
-	return s;
+	auto trimFrom = std::find_if(s.rbegin(), s.rend(), std::not1(std::ptr_fun(extended_isspace))).base();
+	string trimmed = s.substr(trimFrom - s.begin());
+	s.erase(trimFrom, s.end());
+	return trimmed;
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -340,7 +342,7 @@ inline string& whitespace_convert(string& str, size_t& column, bool spacesToTabs
 	return str;
 }
 
-inline string& remove_trailing_whitespaces(string& line)
+inline string remove_trailing_whitespaces(string& line)
 {
 	return rtrim(line);
 }
@@ -384,33 +386,34 @@ inline string& format_line(string& line, const format_info& format)
 	if (line.empty())
 		return line;
 
-	bool carriage_return = (line.back() == '\r');
-
-	if (format.rtw)
-		remove_trailing_whitespaces(line);
-
 	if (format.commentSingleLine)
 	{
+		string trailing = remove_trailing_whitespaces(line);
+
 		size_t startPos = line.rfind("/*");
 		if (startPos != string::npos)
 		{
 			size_t endPos = line.find("*/", startPos+2);
 			if (endPos != string::npos && endPos == line.length() - 2)
 			{
-				line.erase(endPos, 2);
 				line[startPos + 1] = '/';
+				line.erase(endPos, 2);
 			}
 		}
 
-		if (format.rtw)
-			remove_trailing_whitespaces(line);
+		line += trailing;
 	}
 
-	if (format.rtw && carriage_return)
-		line += '\r';
+	if (format.rtw)
+	{
+		bool carriage_return = (line.back() == '\r');
+		remove_trailing_whitespaces(line);
+		if (carriage_return)
+			line += '\r';
 
-	if (line.length() == 0 || (carriage_return && line.length() == 1))
-		return line;
+		if (line.length() == 0 || (carriage_return && line.length() == 1))
+			return line;
+	}
 
 	if (format.spaceIndents || format.tabIndents || format.spaceToTabInLine || format.tabToSpaceInLine)
 	{
